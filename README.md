@@ -1,76 +1,116 @@
-# Noticion---Google-Calendar-sync
+# Notion - Google Calendar Sync
 
-**notion-google-calendar-sync** is a tool for two-way synchronisation between Notion and Google Calendar.
+## 📌 Descripción
+Este proyecto implementa la **integración entre Notion y Google Calendar**, permitiendo visualizar y sincronizar reuniones de **Google Meet** directamente desde una base de datos en Notion.  
 
-> [!NOTE]
-> The use of this tool is deprecated since the [Notion calendar](https://www.notion.so/product/calendar) was released in January 2024, which can be synchronized with Google Calendar by simply logging in with a Google account.
+El sistema se desarrolla siguiendo el **SDLC (Software Development Life Cycle)**, aplicando buenas prácticas de **seguridad, pruebas y despliegue automatizado**.
 
-## Features
+---
 
-<img src="./docs/imgs/notion-google-calendar-sync.jpeg" />
+## 🎯 Objetivo
+Desde una página en Notion, poder:
+- Ver reuniones programadas en **Google Calendar**.  
+- Sincronizar eventos automáticamente en una base de datos de **Notion**.  
+- Mostrar las próximas reuniones (24h o semana actual).  
 
-* Periodically monitor and synchronize Notion and Google Calendar events
-* The tool is deployed to Google Cloud, all using free tier products (Cloud Functions, Cloud FireStore, etc.)
-* Terraform code is available
+---
 
-## Prerequisites
-* [gcloud CLI](https://cloud.google.com/sdk/docs/install)
-* [Terraform](https://developer.hashicorp.com/terraform/downloads)
-* [Google Cloud Project](https://cloud.google.com/free)
-* [Notion API Integration](https://www.notion.so/help/create-integrations-with-the-notion-api)
-* [Google Calendar](https://calendar.google.com/)
+## ⚠️ Riesgos Identificados
+- Cambios en las **APIs de Google o Notion**.  
+- Límites de **cuotas de uso de las APIs**.  
+- Exposición de **credenciales en texto plano**.  
 
-The properties to be synchronized between Notion and Google Calendar are shown in the figure below:
+---
 
-<img src="./docs/imgs/calendar-properties-sync.jpeg" />
+## 📋 Análisis de Requisitos
 
-Note that the properties marked with an star in Notion must be created by the user before deploying. 
-The property name does not have to be `Date`/`Tags`/`UUID`/`Description`, but if it is changed, it should be set to a runtime environment variable (`NOTION_DATE_PROPERTY_NAME`/`NOTION_TAGS_PROPERTY_NAME`/`NOTION_UUID_PROPERTY_NAME`/`NOTION_DESCRIPTION_PROPERTY_NAME`) to distinguish it from other properties when getting events.
+### ✅ Requisitos Funcionales
+1. Recuperar reuniones programadas en Google Calendar que tengan enlace de Google Meet.  
+2. Insertar o actualizar automáticamente los eventos en una base de datos de Notion.  
+3. Mostrar en Notion las reuniones próximas (24h o semana actual).  
+4. Sincronizar cambios (modificación o eliminación) entre Google Calendar y Notion.  
 
+### ⚙️ Requisitos No Funcionales
+1. Manejo de al menos **10.000 eventos diarios**.  
+2. Disponibilidad **≥ 99%**.  
+3. Compatibilidad con **múltiples workspaces** de Notion y **varios calendarios** de Google.  
 
-## Deploy
-Copy the template to `locals.tf` and edit it to match your Google Cloud Project configuration. Be especially careful that `bucket_name` must be globally unique.
-```bash
-cd terraform
-cp locals.tf.tmp locals.tf
-```
+### 🔐 Requisitos de Seguridad
+- Almacenar tokens en un **gestor seguro** (no en texto plano).  
+- Registrar logs de sincronización y accesos a tokens, **sin exponer credenciales**.  
 
-Enbale the Google Cloud APIs to be used.
-You can enable the APIs automatically using Terraform, but it may take some time to be activated, so use the `gcloud` command.
-```bash
-# terraform/init.sh
-PROJECT_ID="xxxxxx-xxxxxxxx-xxxxxx" # Change Required
-gcloud auth login
-gcloud services enable compute.googleapis.com cloudscheduler.googleapis.com logging.googleapis.com cloudfunctions.googleapis.com eventarc.googleapis.com run.googleapis.com calendar-json.googleapis.com firestore.googleapis.com --project "${PROJECT_ID}"
-```
+---
 
-Now we can finally deploy the tool to Google Cloud.
+## 🏗️ Diseño
 
-You can change it later on the Google Cloud console, but if it bothers you, you can change the runtime environment variables from [`terraform/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/terraform/main.tf#L79) before executing the following Terraform commands.
+### 📡 Arquitectura
+- **Notion**: arquitectura SaaS basada en la nube, con backend en **microservicios**.  
+- Se plantea un **middleware** como intermediario entre Google Calendar API y Notion API.  
+- Comunicaciones cifradas con **HTTPS/TLS**.  
 
-```bash
-gcloud auth application-default login
-terraform init
-terraform plan
-terraform apply
-```
-Once `terraform apply` is complete, you will see your service account email as follows:
-```
-Outputs:
+### 🛡️ Modelado de Amenazas (Threat Modeling)
+- **Exposición accidental de enlaces de Meet** → mitigado con **control de permisos en Notion**.  
 
-service_account_email = "notion-google-calendar-sync@xxxxxx-xxxxxxxx-xxxxxx.iam.gserviceaccount.com"
-```
-Then, in your Google Calendar, remember to grant the appropriate permissions to the service account you have created.
+### 🛠️ Controles y Contramedidas
+- Logging seguro y auditoría de eventos.  
+- Uso de **OAuth 2.0** para autenticación y gestión de sesiones.  
+- Tokens cifrados en tránsito y en reposo.  
 
-<img src="./docs/imgs/google-calendar-grant-permission.png" />
+---
 
-## FAQ
-### Can I change the frequency of synchronization?
-You can change the frequency of synchronization specified in [`terraform/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/terraform/main.tf#L29). Please refer to the following URL for the cron job format.
+## 💻 Desarrollo
 
-[Cron job format and time zone  \|  Cloud Scheduler Documentation  \|  Google Cloud](https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules)
+### 🔑 Prácticas de Codificación Segura
+- Autenticación mediante **OAuth 2.0** (Google & Notion).  
+- Tokens gestionados con **expiración y renovación**.  
+- **HTTPS/TLS** para comunicaciones.  
+- Variables de entorno seguras o gestores de secretos.  
 
-Note that extremely high synchronization frequency may exceed Google Cloud's free tier.
+### 🤖 Herramientas de Análisis
+- **SAST (Análisis Estático):** SonarQube → identifica vulnerabilidades en código.  
+- **DAST (Análisis Dinámico):** OWASP ZAP → detecta configuraciones inseguras y fallos en la gestión de tokens.  
 
-## License
-"notion-google-calendar-sync" is under [MIT License](https://opensource.org/license/mit/).
+---
+
+## 🧪 Pruebas
+- **Pruebas funcionales**: validación de sincronización entre Notion y Google Calendar.  
+- **Pruebas de seguridad**: penetration testing + análisis con SAST y DAST.  
+- **Pruebas adicionales** en caso de integración con IA → detección de riesgos específicos.  
+
+---
+
+## 🚀 Implementación y Despliegue
+- **CI/CD** con GitHub Actions o GitLab CI/CD.  
+- **Pipelines seguros** para despliegue automatizado.  
+- **Firmas digitales** para validar integridad del código.  
+- **Monitoreo post-despliegue** para detección temprana de incidentes.  
+
+---
+
+## 🔄 Mantenimiento
+- Gestión continua de vulnerabilidades con parches de seguridad oportunos.  
+- Actualizaciones regulares y monitoreo constante en producción.  
+- Garantía de **estabilidad y seguridad a largo plazo**.  
+
+---
+
+## 📂 Repositorio
+🔗 [GitHub - Notion Google Calendar Sync](https://github.com/kitsuyaazuma/notion-google-calendar-sync)
+
+---
+
+## 📚 Bibliografía
+- [Notion](https://www.notion.com/es)  
+- [Functional vs Non-Functional Requirements](https://visuresolutions.com/es/alm-guide/functional-vs-non-functional-requirements/)  
+- [OWASP ZAP](https://www.zaproxy.org/)  
+
+---
+
+## 👨‍💻 Autores
+- **Dilan Rojas Carmona**  
+- **Sebastián Vélez Guarín**  
+
+**Curso:** Cloud Computing  
+**Docente:** Durley López  
+**Universidad Católica Luis Amigó**  
+📅 **03/10/2025**
